@@ -49,6 +49,7 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.maps.android.clustering.ClusterItem;
+import com.google.maps.android.clustering.ClusterManager;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -56,8 +57,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import it.unive.dais.cevid.datadroid.lib.cluster.ClusterItemAdapter;
-import it.unive.dais.cevid.datadroid.lib.cluster.CustomClusterManager;
+import it.unive.dais.cevid.datadroid.lib.cluster.DatadroidClusterManager;
+import it.unive.dais.cevid.datadroid.lib.cluster.DatadroidClusterManagerBuilder;
+import it.unive.dais.cevid.datadroid.lib.map.DatadroidMap;
 import it.unive.dais.cevid.datadroid.lib.parser.AsyncParser;
 import it.unive.dais.cevid.datadroid.lib.parser.CsvRowParser;
 import it.unive.dais.cevid.datadroid.lib.parser.ParserException;
@@ -92,6 +94,7 @@ public class MapsActivity extends AppCompatActivity
      * Questo oggetto è la mappa di Google Maps. Viene inizializzato asincronamente dal metodo {@code onMapsReady}.
      */
     protected GoogleMap gMap;
+    DatadroidMap map;
     /**
      * Pulsanti in sovraimpressione gestiti da questa app. Da non confondere con i pulsanti che GoogleMaps mette in sovraimpressione e che non
      * fanno parte degli oggetti gestiti manualmente dal codice.
@@ -138,8 +141,21 @@ public class MapsActivity extends AppCompatActivity
 
         // inizializza la mappa asincronamente
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
-        mapFragment.getMapAsync(this);
-
+        //mapFragment.getMapAsync(this);
+        map = new DatadroidMap.Builder().
+                withOnMapClickListener(this).
+                withOnMapLongClickListener(this).
+                withOnMapReadyCallback(this).
+                withClusterActivated(true).
+                withMarkerColor(BitmapDescriptorFactory.HUE_BLUE).
+                withClusterItems(getMapItemList()).
+                withclusterItemInfoWindowClickListener(new ClusterManager.OnClusterItemInfoWindowClickListener() {
+                    @Override
+                    public void onClusterItemInfoWindowClick(ClusterItem clusterItem) {
+                        Toast.makeText(getApplicationContext(), "Clicked ", Toast.LENGTH_SHORT).show();
+                    }
+                }).
+                createAndGetMapAsync(this, mapFragment);
         // quando viene premito il pulsante HERE viene eseguito questo codice
         button_here.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -372,7 +388,7 @@ public class MapsActivity extends AppCompatActivity
      */
     @Override
     public void onMapLongClick(LatLng latLng) {
-
+        Toast.makeText(this, "Long Clicked on Map!", Toast.LENGTH_SHORT).show();
     }
 
     /**
@@ -416,23 +432,23 @@ public class MapsActivity extends AppCompatActivity
      */
     @Override
     public void onMapReady(GoogleMap googleMap) {
-        gMap = googleMap;
-
+        //gMap = googleMap;
+        Log.i("MapBuilder", "onMapReadyCallback!");
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(MapsActivity.this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, PERMISSIONS_REQUEST_ACCESS_BOTH_LOCATION);
         } else {
-            gMap.setMyLocationEnabled(true);
+            map.getGMap().setMyLocationEnabled(true);
         }
 
-        gMap.setOnMapClickListener(this);
-        gMap.setOnMapLongClickListener(this);
-        gMap.setOnCameraMoveStartedListener(this);
-        gMap.setOnMarkerClickListener(this);
+        //gMap.setOnMapClickListener(this);
+        //gMap.setOnMapLongClickListener(this);
+        //gMap.setOnCameraMoveStartedListener(this);
+        //gMap.setOnMarkerClickListener(this);
 
-        UiSettings uis = gMap.getUiSettings();
-        uis.setZoomGesturesEnabled(true);
-        uis.setMyLocationButtonEnabled(true);
-        gMap.setOnMyLocationButtonClickListener(
+        //UiSettings uis = gMap.getUiSettings();
+        //uis.setZoomGesturesEnabled(true);
+        //uis.setMyLocationButtonEnabled(true);
+        /*gMap.setOnMyLocationButtonClickListener(
                 new GoogleMap.OnMyLocationButtonClickListener() {
                     @Override
                     public boolean onMyLocationButtonClick() {
@@ -446,7 +462,7 @@ public class MapsActivity extends AppCompatActivity
 
         applyMapSettings();
 
-        demo();
+        demo();*/
     }
 
     /**
@@ -588,13 +604,13 @@ public class MapsActivity extends AppCompatActivity
 
     @Nullable
     private Collection<Marker> markers;
-
-    private void demo() {
+    private List<MapItem> getMapItemList(){
+        List<MapItem> l = new ArrayList<>();
         try {
             InputStream is = getResources().openRawResource(R.raw.piattaforme);
             CsvRowParser p = new CsvRowParser(new InputStreamReader(is), true, ";", null);
             List<CsvRowParser.Row> rows = p.getAsyncTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR).get();
-            List<MapItem> l = new ArrayList<>();
+
             for (final CsvRowParser.Row r : rows) {
                 MapItem m = new MapItem() {
                     @Override
@@ -615,17 +631,13 @@ public class MapsActivity extends AppCompatActivity
                 };
                 l.add(m);
             }
-            //markers = putMarkersFromMapItems(l);
-            CustomClusterManager cm = new CustomClusterManager.Builder().
-                    withClusterItems(l).
-                    withMarkerColor(BitmapDescriptorFactory.HUE_CYAN).
-                    withClusterActivated(false).
-                    create(this, gMap);
-            cm.cluster();
-
         } catch (Exception e) {
             e.printStackTrace();
         }
+        return l;
+    }
+    private void demo() {
+
     }
 
 
