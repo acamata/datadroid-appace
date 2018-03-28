@@ -47,6 +47,7 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.maps.android.clustering.ClusterItem;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -54,6 +55,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import it.unive.dais.cevid.datadroid.lib.cluster.ClusterItemAdapter;
+import it.unive.dais.cevid.datadroid.lib.cluster.CustomClusterManager;
 import it.unive.dais.cevid.datadroid.lib.parser.AsyncParser;
 import it.unive.dais.cevid.datadroid.lib.parser.CsvRowParser;
 import it.unive.dais.cevid.datadroid.lib.parser.ParserException;
@@ -591,8 +594,9 @@ public class MapsActivity extends AppCompatActivity
             CsvRowParser p = new CsvRowParser(new InputStreamReader(is), true, ";", null);
             List<CsvRowParser.Row> rows = p.getAsyncTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR).get();
             List<MapItem> l = new ArrayList<>();
+            ArrayList<ClusterItem> lc = new ArrayList<>();
             for (final CsvRowParser.Row r : rows) {
-                l.add(new MapItem() {
+                MapItem m = new MapItem() {
                     @Override
                     public LatLng getPosition() throws ParserException {
                         String lat = r.get("Latitudine (WGS84)"), lng = r.get("Longitudine (WGS 84)");
@@ -608,9 +612,19 @@ public class MapsActivity extends AppCompatActivity
                     public String getDescription() throws ParserException {
                         return r.get("Denominazione");
                     }
-                });
+                };
+                l.add(m);
+                lc.add(new ClusterItemAdapter(m));
             }
-            markers = putMarkersFromMapItems(l);
+            Log.d("ClusterItems", "size: "+lc.size());
+            //markers = putMarkersFromMapItems(l);
+            CustomClusterManager cm = new CustomClusterManager.Builder().withClusterItems(lc).create(this, gMap);
+            gMap.setOnCameraIdleListener(cm);
+            gMap.setOnMarkerClickListener(cm);
+            gMap.setOnInfoWindowClickListener(cm);
+            cm.cluster();
+            gMap.setInfoWindowAdapter(cm.getMarkerManager());
+
         } catch (Exception e) {
             e.printStackTrace();
         }
